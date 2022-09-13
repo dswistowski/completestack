@@ -75,7 +75,7 @@ Starting [Next.js](https://nextjs.org/) project is easy. Just run:
 npx create-next-app@latest --typescript
 ```
 
-This will create a new project, the result after this command you can find in: [this repo](https://github.com/dswistowski/completestack-blog/tree/chapter-01-after-init)
+This will create a new project, the result after this command you can find in: [this repo](https://github.com/dswistowski/completestack-blog/tree/chatpter-01-fetch-and-render-posts)
 
 
 > **_Alternatives:_**  It's possible to create next.js project with [create-t3-app](https://create.t3.gg/)
@@ -189,3 +189,204 @@ On this point, you can run `npm run dev` and see the result:
 
 It's time to commit code to git, and [push it to github](https://github.com/dswistowski/completestack-blog/tree/chapter-01-add-tailwind).
 
+# Index page
+
+The next step is to create index page, that will list all posts. We do not configure any backend yet, so we will use 
+[JSONPlaceholder](https://jsonplaceholder.typicode.com/) as a fake backend.
+The expected result if this step to have index page rendered:
+![Index page](../images/chapter-01/mdp-index.png).
+
+To achieve that we need to add `useQuety` hook from [react-query](https://react-query.tanstack.com/).
+This hook will allow us to fetch data from backend, and cache it in the browser.
+
+```bash
+npm install @tanstack/react-query --save
+```
+
+In order to be able to use `useQuery` hook, we need to wrap our app with `QueryClientProvider` (file `src/pages/_app.tsx`):
+
+```typescript jsx
+import type { AppProps } from "next/app";
+import "../styles/globals.css";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+const queryClient = new QueryClient();
+
+function MyApp({ Component, pageProps }: AppProps) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <Component {...pageProps} />
+    </QueryClientProvider>
+  );
+}
+export default MyApp;
+```
+
+`QueryClientProvider` will put `queryClient` in React context, so we can use it in any component.
+
+So now in our `src/pages/index.tsx` file we can use `useQuery` hook:
+
+```typescript jsx
+// ..
+const Home: NextPage = () => {
+    const posts = useQuery(["posts"], fetchPosts);
+    // ...
+}
+```
+
+and we can define `fetchPosts` function:
+
+```typescript jsx
+type Post = {
+    userId: number;
+    id: number;
+    title: string;
+    body: string
+}
+
+const fetchPosts = async () => {
+    const res = await fetch("https://jsonplaceholder.typicode.com/posts");
+    return await res.json() as Post[];
+}
+```
+
+Now we can use `posts` data in our component:
+
+```typescript jsx
+const Home: NextPage = () => {
+  const posts = useQuery(["posts"], fetchPosts);
+  if (posts.isLoading) return <div>Loading...</div>;
+  if (posts.isError) return <div>Error</div>;
+  return (
+    <>
+      <header>
+        <h1>My blog</h1>
+      </header>
+      <main>
+        <ul>
+          {posts.data.map((post) => (
+            <li key={post.id}>{post.title}</li>
+          ))}
+        </ul>
+      </main>
+    </>
+  );
+};
+
+export default Home;
+```
+
+```if (posts.isLoading) return <div>Loading...</div>;``` is early exit from the component, if data is not yet loaded.
+
+```if (posts.isError) return <div>Error</div>;``` is early exit from the component, if there was an error while fetching data.
+
+if data is loaded, we can render it in the list with:
+```typescript jsx
+{posts.data.map((post) => (
+    <li key={post.id}>{post.title}</li>
+))}
+```
+
+### Why useQuery hook?
+
+For simple use cases you can use `fetch` function directly, but `useQuery` gives you abstraction over fetching data, and it's caching.
+Without `useQuery` you would need to implement own fetching logig. It would be something like this:
+
+```typescript jsx
+const usePosts = () => {
+    const [posts, setPosts] = useState<Post[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isError, setIsError] = useState(false);
+    
+    useEffect(() => {
+        let isMounted = true;
+        setIsLoading(true);
+        fetchPosts()
+            .then((posts) => isMounted && setPosts(posts))
+            .catch(() => isMounted && setIsError(true))
+            .finally(() => isMounted && setIsLoading(false));
+        return () => {
+            isMounted = false;
+        }
+    }, []);
+    
+    return { posts, isLoading, isError };
+}
+```
+This code covers only fetching data, without caching. 
+
+
+On this point, you can run `npm run dev` and see the result:
+
+![Index before styling](../images/chapter-01/index-befor-styling.png)
+
+It's time to commit code to git, and [push it to GitHub](https://github.com/dswistowski/completestack-blog/tree/chatpter-01-fetch-and-render-posts).
+
+## Styling index page
+
+Now we can add some styling to our index page. We will use tailwind to style it.
+Tailwind provides utility classes that can be used to style components.
+In order to use them, we need to add `className` attribute to our elements. Lets wrap our index with `div`:
+
+```typescript jsx
+<div className="mx-auto max-w-6xl">
+    ...
+</div
+```
+This is a container that will center our content (because `m(argin)x-auto`), and limit it's width to 6xl breakpoint (`max-w(idth)-6xl`).
+
+After thad add some spacing to header:
+
+```typescript jsx
+<header className="py-2">
+    <h1 className="text-4xl font-extrabold uppercase">My blog</h1>
+</header>
+```
+
+Header will have `y` axis padding of 2 units (`py-2`), and title will have font size of 4xl (`text-4xl`), and will be bold (`font-extrabold`).
+
+
+and to main section:
+
+```typescript jsx
+<h2 className="text-2xl">Recent entries:</h2>
+<ul className="mt-4">
+  {posts.data.map((post) => (
+    <li key={post.id} className="flex flex-col my-4">
+      <h3 className="text-xl">{post.title}</h3>
+      <span className="text-sm text-gray-500">2012-12-12 12:12</span>
+    </li>
+  ))}
+</ul>
+```
+
+Subheader will have font size of 2xl (`text-2xl`), and list will have margin top of 4 units (`mt-4`).
+Inside list we will have flex column layout (`flex flex-col`), and margin bottom of 4 units (`my-4`).
+
+> Note: Flex layout shine in managing layout of intrinsic size children, and you can read more about it [here](https://css-tricks.com/snippets/css/a-guide-to-flexbox/).
+
+After having this code, we can pimp up our index page, by adding cards to our list: `bg-white rounded border shadow`:
+
+```typescript jsx
+<li
+  key={post.id}
+  className="p-4 my-4 flex flex-col bg-white rounded border shadow"
+>
+  <h3 className="text-xl">{post.title}</h3>
+  <span className="text-sm text-gray-500">2012-12-12 12:12</span>
+</li>
+```
+
+And last step is to make our cards more visible, by changing background color of body to `bg-gray-100`. 
+To do that we can use `@apply` directive, that will apply all classes from `bg-gray-100` to `body` element in our `styles/globals.css`:
+
+```css
+
+body {
+    @apply bg-gray-100;
+}
+```
+
+After this, our index page should look like this: 
+![Index after styling](../images/chapter-01/index-after-styling.png)
+
+Lets commit our changes to git, and [push it to GitHub]()
