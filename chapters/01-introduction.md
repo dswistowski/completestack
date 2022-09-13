@@ -1,8 +1,7 @@
 # Introduction
 
-Lorem ipsum donor
+// TODO: Write introduction
 
-```python
-def foo():
-    print("hello world")
-```
+[]: # Language: markdown
+
+This is the introduction to the book.
