@@ -77,6 +77,8 @@ npx create-next-app@latest --typescript
 
 This will create a new project, the result after this command you can find in: [this repo](https://github.com/dswistowski/completestack-blog/tree/chatpter-01-fetch-and-render-posts)
 
+> **_TODO:_** Put small chapter about how to use `Next.JS`
+
 
 > **_Alternatives:_**  It's possible to create next.js project with [create-t3-app](https://create.t3.gg/)
 > I'd use it form most of my bootstraping projects, but for this book I want to go step by step.
@@ -389,4 +391,368 @@ body {
 After this, our index page should look like this: 
 ![Index after styling](../images/chapter-01/index-after-styling.png)
 
-Lets commit our changes to git, and [push it to GitHub]()
+Lets commit our changes to git, and [push it to GitHub](https://github.com/dswistowski/completestack-blog/tree/chatpter-01-after-styling-index).
+
+## New post page
+
+After styling index page, we can move to creating new post page. 
+![New post page](../images/chapter-01/mdp-new.png)
+
+For easy navigation lets start from adding link on index page to new post page:
+
+```typescript jsx
+<nav>
+  <ul className="flex gap-2 mt-2">
+    <li>
+      <Link href="/new" passHref>
+        <a className="p-2 rounded border-2 border-gray-500 text-gray-900 bg-gray-100 hover:bg-gray-700 hover:text-gray-100">
+          New post
+        </a>
+      </Link>
+    </li>
+  </ul>
+</nav>
+```
+
+> **_Note:_**  Next.js's `Link` component is used to navigate between pages. `passHref` is used to tell `Link` to pass `href` attribute to child element. In this case it's `a` element. 
+> Without this, the &lt;a&gt; tag will not have the href attribute, which hurts your site's accessibility and might affect SEO.
+
+
+
+After that we can create `src/pages/new.tsx` file, and add some content to it:
+
+```typescript jsx
+import { NextPage } from "next";
+
+const New: NextPage = () => {
+  return <div>New page placeholder</div>;
+};
+
+export default New;
+```
+
+After this change the button we added should redirect to new page.
+
+### Extracting components
+
+There are two elements shared between index and new post page: header and layout. 
+Now it's good time to extract them to components.
+Lets start with layout, by creating `src/components/layout.tsx` file, and adding following content to it:
+
+```typescript jsx
+import React, { PropsWithChildren } from "react";
+
+export const Layout: React.FC<PropsWithChildren> = ({ children }) => (
+    <div className="mx-auto max-w-6xl">{children}</div>
+);
+```
+
+The type definition for this component is `React.FC<PropsWithChildren>`, which means that it's a functional component, 
+that accepts props, and has children.
+It's time to use it on our index page:
+
+```typescript jsx
+// ..
+import { Layout } from "../components/layout";
+// ..
+const Home: NextPage = () => {
+    const posts = useQuery(["posts"], fetchPosts);
+    if (posts.isLoading) return <div>Loading...</div>;
+    if (posts.isError) return <div>Error</div>;
+    return (
+        <Layout>
+            // ..
+        </Layout>
+    );
+}
+```
+
+and new:
+
+```typescript jsx
+import { NextPage } from "next";
+import { Layout } from "../components/layout";
+
+const New: NextPage = () => {
+  return <Layout>New</Layout>;
+};
+
+export default New;
+```
+
+After this change, we should do the same with the header in `src/components/header.tsx`:
+
+```typescript jsx
+import Link from "next/link";
+import React from "react";
+
+export const Header: React.FC = () => (
+  <header className="py-2">
+    // content copied from index page
+  </header>
+);
+```
+
+Update index page:
+
+```typescript jsx
+const Home: NextPage = () => {
+    // ..
+    return (
+        <Layout>
+            <Header/>
+            <main>
+                // ..
+            </main>
+        </Layout>
+    )
+}
+```
+
+And new post page:
+
+```typescript jsx
+import { NextPage } from "next";
+import { Layout } from "../components/layout";
+import { Header } from "../components/header";
+
+const New: NextPage = () => {
+  return (
+    <Layout>
+      <Header />
+      New
+    </Layout>
+  );
+};
+
+export default New;
+```
+
+Now lets create the form:
+
+```typescript jsx
+import { NextPage } from "next";
+import { Layout } from "../components/layout";
+import { Header } from "../components/header";
+
+const New: NextPage = () => {
+  return (
+    <Layout>
+      <Header />
+      <main className="py-2">
+        <form className="p-4 bg-white rounded border shadow flex flex-col gap-2">
+          <input
+            className="p-2 text-2xl w-full"
+            type="text"
+            placeholder="Post Title"
+          />
+          <textarea
+            className="p-2 text-md"
+            placeholder="your blog post content"
+          ></textarea>
+          <button className="p-2 rounded border-2 border-gray-500 text-gray-900 bg-gray-100 hover:bg-gray-700 hover:text-gray-100 w-fit self-end">
+            Save
+          </button>
+        </form>
+      </main>
+    </Layout>
+  );
+};
+
+export default New;
+```
+
+At this point we introduced some duplications, which we can fix by extracting `Card` and `Button` component.
+Lets start with `Button`. It's present in two places: header and the form but in header it's an `anchor` element, 
+but in form it's a `button` element.
+To make it reusable we can use `as` prop, that will allow us to change the element type (new file `src/components/button.tsx`):
+
+```typescript jsx
+import React from "react";
+
+export const Button: React.FC<{
+    as?: "button" | "a";
+    children: string;
+    className?: string;
+}> = ({ children, as = "button", className = "", ...props }) => {
+    return React.createElement(
+        as,
+        {
+            className: `p-2 rounded border-2 border-gray-500 text-gray-900 bg-gray-100 hover:bg-gray-700 hover:text-gray-100 ${className}`,
+            ...props,
+        },
+        children
+    );
+};
+```
+
+We are using `React.createElement` to create element based on `as` prop. 
+We are also passing all props to the new element, 
+but there is no type definition for additional props so it will be not possible to use them at the moment.
+We will solve that problem when we will need add additional props to the button.
+
+We can now use our button in the form:
+
+```typescript jsx
+// ...
+<textarea
+    className="p-2 text-md"
+    placeholder="your blog post content"
+></textarea>
+<Button className="self-end">save</Button>
+// ...
+```
+
+and in the header:
+
+```typescript jsx
+// ..
+<Link href="/new" passHref>
+    <Button as="a">New post</Button>
+</Link>
+// ..
+```
+
+After last change you you will see errors in the console:
+
+> Warning: Functions are not valid as a React child. This may happen if you return a Component instead of <Component /> from render. Or maybe you meant to call this function rather than return it.
+
+It's because we are using function component as a child of `<Link>` element with `passHref`. To fix it we can use `React.forwardRef`:
+
+```typescript jsx
+import React from "react";
+
+export const Button: React.FC<{
+    as?: "button" | "a";
+    children: string;
+    className?: string;
+}> = React.forwardRef(function InnerButton(
+    { children, as = "button", className = "", ...props },
+    ref
+) {
+    return React.createElement(
+        as,
+        {
+            className: `p-2 rounded border-2 border-gray-500 text-gray-900 bg-gray-100 hover:bg-gray-700 hover:text-gray-100 ${className}`,
+            ref,
+            ...props,
+        },
+        children
+    );
+});
+```
+
+Forward ref will be used by `Link` component to get access to the `a` element, even if it's wrapped by `Button` component.
+
+It's time to commit to git, and push: , and [push it to github](https://github.com/dswistowski/completestack-blog/tree/chapter-01-new-post-page).
+
+Our current page looks like:
+
+![New post page](../images/chapter-01/new-post-first-version.png)
+
+## New post form, cleaning up
+
+There is few things that we can improve:
+
+1. Header spacing look odd around button
+2. We cannot go back to list of posts
+3. New post button is active on `/new` page
+4. On small screen, the form touch end of the screen without any padding
+5. Post editor should fill whole screen and the blog post field should use as much space as it's possible
+
+
+### Fixing spacing
+Lets do it now, fixing spacing in header is easy, lets change margins of nav ul element from `m(argin )t(op)-2` to `m(margin )y(-axis)-4` 
+in `src/components/header.tsx` file:
+
+```typescript jsx
+// ,,,
+<nav>
+  <ul className="flex gap-2 my-4">
+  // ...
+  </ul>
+</nav>
+// ,,,
+```
+
+### Adding home link to page title
+To fix the second issue we can add link to `/` to the header by replacing
+```typescript jsx
+<h1 className="text-4xl font-extrabold uppercase">My blog</h1>
+```
+with
+```typescript jsx
+<Link href="/">
+  <a>
+    <h1 className="text-4xl font-extrabold uppercase inline-flex">
+      My blog
+    </h1>
+  </a>
+</Link>
+```
+
+New `inline-flex` class will set display type for our title to `inline-flex` as a result the title will not have full page width.
+
+### Deactivate new post button
+
+Links with extra styling for active pages are common pattern in web applications. 
+We can create new `LinkButton` component that will be used in header by extracting current `/new` page button:
+
+To acheive that in file `src/components/header.tsx` we can replace:
+
+```typescript jsx
+import { Button } from "./button";
+// ...
+<Link href="/new" passHref>
+    <Button as="a">New post</Button>
+</Link>
+```
+
+with:
+
+```typescript jsx
+import { LinkButton } from "./button";
+// ...
+<LinkButton href="/new">New post</LinkButton>
+```
+
+And create new `LinkButton` component in `src/components/button`:
+
+```typescript jsx
+import { useRouter } from "next/router";
+// ...
+export const LinkButton: React.FC<{
+  children: string;
+  href: string;
+}> = ({ children, href }) => {
+  const route = useRouter();
+
+  return (
+    <Link href={href} passHref>
+      <Button
+        className={route.asPath === href ? "bg-gray-700 text-gray-100" : ""}
+      >
+        {children}
+      </Button>
+    </Link>
+  );
+};
+```
+
+Hook `useRouter` will give us access to current route, and we can use it to check if current route is the same as `href` prop.
+If it's the same, we will apply additional styling to the button.
+
+### Fixing small screen problem
+
+To fix small screen problem we can add padding to the form by adding `p-4` class to our `Layout` component in `src/components/layout.tsx` file:
+
+```typescript jsx
+export const Layout: React.FC<PropsWithChildren> = ({ children }) => (
+  <div className="mx-auto max-w-6xl px-4">{children}</div>
+);
+```
+
+### Making new post form to fill whole screen
+
+
+
