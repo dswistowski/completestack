@@ -754,5 +754,78 @@ export const Layout: React.FC<PropsWithChildren> = ({ children }) => (
 
 ### Making new post form to fill whole screen
 
+Now it's time to improve our layout. This is result we want to achieve:
 
+![the layout](../images/chapter-01/page-layout.png)
 
+Both header and footer should be optional, but if they are present they should be fixed to the top and bottom of the screen.
+This layout allow us to make form to grow to all available space.
+
+Tailwindcss allows for easy use of css modules, so we can create new `src/components/layout.module.css` file with following content:
+
+```css
+.layout {
+    @apply mx-auto max-w-6xl px-4;
+    @apply flex flex-col min-h-screen;
+}
+
+.layout > main {
+    @apply flex-grow flex flex-col mb-4;
+}
+```
+
+`@apply` directive will inline all css classes from tailwindcss, so we can use them in our css modules.
+`mx-auto max-w-6xl px-4` are our current classes, we are adding `flex flex-col min-h-screen` to specify our main layout is 
+colum flexbox with minimum height of the screen. 
+
+`.layout > main` selector will apply styles to all direct children of `.layout` element, which are `main` elements.
+lastly `flex-grow` will make `main` element to grow to all available space.
+
+To use `css` module we need to import it in our `src/components/layout.tsx` file and replace `className` prop with `className={styles.layout}`:
+
+> **_Note_**: We are using css module for layout because we want to define rules for children of our component.
+> We could pass class names as props to children, but it would be more complicated and less readable.
+
+```typescript jsx
+import React, { PropsWithChildren } from "react";
+import style from "./layout.module.css";
+
+export const Layout: React.FC<PropsWithChildren> = ({ children }) => (
+  <div className={style.layout}>{children}</div>
+);
+```
+
+This change will not be visible on our page, but everyhing in `main` element can now grow to fill available space.
+We will edit our `src/pages/new.tsx` add `grow` class to the form:
+
+```typescript jsx
+// ...
+<form
+  className="p-4 mb-4 bg-white rounded border shadow flex flex-col gap-2 grow"
+  // ...
+>
+  // ...
+</form>
+```
+
+This change will make form to grow to all available space, but we need to make sure that place to edit blog post content will grow to:
+Lets change:
+```typescript jsx
+<textarea
+  className="p-2 text-md"
+  // ...
+></textarea>   
+```
+to:
+```typescript jsx
+<textarea
+  className="p-2 text-md grow"
+    // ...
+></textarea>
+```
+
+After this change our form will look like this:
+
+![new post styled](../images/chapter-01/new-post-styled.png)
+
+Lets commit code, and [push it to github](https://github.com/dswistowski/completestack-blog/tree/chapter-01-new-post-page-styled).
